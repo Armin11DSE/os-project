@@ -4,6 +4,25 @@
 #include "user.h"
 #include "x86.h"
 
+int thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
+{
+
+}
+int lock_init(lock*)
+{
+
+}
+
+void lock_acquire(lock*)
+{
+
+}
+
+void lock_release(lock*)
+{
+
+}
+
 char*
 strcpy(char *s, const char *t)
 {
