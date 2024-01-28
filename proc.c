@@ -174,14 +174,94 @@ growproc(int n)
   return 0;
 }
 
-int clone(void*)
+int 
+clone(void *stack, void (*func)(void *, void *), void *arg1, void *arg2)
 {
+  // Allocate a new process
+  struct proc *np = allocproc();
+  if (np == 0)
+  {
+    return -1; // Error: Unable to allocate process
+  }
 
+  // Copy process state from current process to new process
+  *np = *myproc();
+
+  // Allocate a new kernel stack for the new process
+  if ((np->kstack = kalloc()) == 0)
+  {
+    np->state = UNUSED;
+    return -1; // Error: Unable to allocate stack
+  }
+
+  // Set up the new process's user stack
+  if (stack == 0)
+  {
+    stack = (void*)myproc()->tf->esp; // Use the current process's stack
+  }
+  np->tf->esp = (uint)stack;
+
+  // Set up the new process's instruction pointer to start_func
+  np->tf->eip = (uint)func;
+
+  // Set up the function arguments on the new stack
+  np->tf->esp -= 12;
+  *(void **)(np->tf->esp) = arg2;
+  np->tf->esp -= 4;
+  *(void **)(np->tf->esp) = arg1;
+  np->tf->esp -= 4;
+  *(void **)(np->tf->esp) = 0; // fake return PC
+
+  np->state = RUNNABLE; // Ready to run
+
+  return np->pid; // Return the new process's ID
 }
 
-int join(void)
+int 
+join(int tid)
 {
-  
+  struct proc *p;
+  int havekids;
+  struct proc *curproc = myproc();
+
+  acquire(&ptable.lock);
+
+  while (1)
+  {
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->parent != curproc)
+        continue;
+      havekids = 1;
+      if (p->state == ZOMBIE && p->tid == tid)
+      {
+        // Found the child, clean up and return its pid.
+        int pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if (!havekids || curproc->killed)
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc.c)
+    sleep(curproc, &ptable.lock); // Release ptable.lock and sleep.
+  }
 }
 
 // Create a new process copying p as the parent.

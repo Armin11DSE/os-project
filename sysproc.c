@@ -6,17 +6,34 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "lock.h"
 
 int
 sys_clone(void)
 {
-  return clone();
+  void (*func)(void *, void *);
+  void *arg1, *arg2, *stack;
+
+  if (argptr(0, (char**)&stack, sizeof(void*)) < 0 || argptr(1, (char**)&func, sizeof(void*)) < 0 ||
+      argptr(2, (char**)&arg1, sizeof(void*)) < 0 || argptr(3, (char**)&arg2, sizeof(void*)) < 0) 
+  {
+    return -1;
+  }
+
+  return clone(stack, func, arg1, arg2);
 }
 
 int
 sys_join(void)
 {
-  return join();
+  int tid;
+
+  if (argint(0, &tid) < 0) 
+  {
+    return -1;
+  }
+
+  return join(tid);
 }
 
 int

@@ -3,24 +3,48 @@
 #include "fcntl.h"
 #include "user.h"
 #include "x86.h"
-
-int thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
+#include "param.h"
+#include "lock.h"
+/*
+int 
+thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
 {
+  void *stack = malloc(KSTACKSIZE);
+  if (stack == NULL)
+  {
+    return -1; // Error: Unable to allocate stack
+  }
 
+  // Set up arguments for clone
+  int tid = clone(stack + KSTACKSIZE, worker, arg1, arg2);
+
+  if (tid < 0)
+  {
+    free(stack); // Clean up on failure
+  }
+
+  return tid;
+}*/
+
+int 
+lock_init(struct lock *lk)
+{
+  lk->locked = 0;
+  return 0;
 }
-int lock_init(lock*)
-{
 
+void 
+lock_acquire(struct lock *lk)
+{
+  // Spin until the lock is acquired
+  while (xchg(&lk->locked, 1) != 0)
+    ;
 }
 
-void lock_acquire(lock*)
+void 
+lock_release(struct lock *lk)
 {
-
-}
-
-void lock_release(lock*)
-{
-
+  xchg(&lk->locked, 0);
 }
 
 char*
