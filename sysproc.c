@@ -6,7 +6,6 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-#include "lock.h"
 
 int
 sys_clone(void)
@@ -34,6 +33,35 @@ sys_join(void)
   }
 
   return join(tid);
+}
+
+int 
+sys_lock_init(void)
+{
+  struct lock *lk;
+  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
+    return -1;
+  return lock_init(lk);
+}
+
+int 
+sys_lock_acquire(void)
+{
+  struct lock *lk;
+  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
+    return -1;
+  lock_acquire(lk);
+  return 0;
+}
+
+int 
+sys_lock_release(void)
+{
+  struct lock *lk;
+  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
+    return -1;
+  lock_release(lk);
+  return 0;
 }
 
 int

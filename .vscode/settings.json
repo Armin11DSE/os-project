@@ -6,6 +6,7 @@
         "param.h": "c",
         "x86.h": "c",
         "user.h": "c",
-        "mmu.h": "c"
+        "mmu.h": "c",
+        "date.h": "c"
     }
 }

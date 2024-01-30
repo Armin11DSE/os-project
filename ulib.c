@@ -26,25 +26,22 @@ thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
   return tid;
 }*/
 
-int 
-lock_init(struct lock *lk)
+int
+lock_init(struct lock* lk)
 {
-  lk->locked = 0;
-  return 0;
+  return lock_init(lk);
 }
 
-void 
-lock_acquire(struct lock *lk)
+void
+lock_acquire(struct lock* lk)
 {
-  // Spin until the lock is acquired
-  while (xchg(&lk->locked, 1) != 0)
-    ;
+  return lock_acquire(lk);
 }
 
-void 
-lock_release(struct lock *lk)
+void
+lock_release(struct lock* lk)
 {
-  xchg(&lk->locked, 0);
+  return lock_release(lk);
 }
 
 char*

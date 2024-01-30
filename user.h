@@ -5,6 +5,9 @@ struct lock;
 // system calls
 int clone(void*, void (*func)(void*, void*), void*, void*);
 int join(int);
+int lock_init(struct lock*);
+void lock_acquire(struct lock*);
+void lock_release(struct lock*);
 int fork(void);
 int exit(void) __attribute__((noreturn));
 int wait(void);
