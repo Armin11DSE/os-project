@@ -177,68 +177,62 @@ growproc(int n)
 int 
 clone(void *stack, void (*func)(void *, void *), void *arg1, void *arg2)
 {
-  // Allocate a new process
-  struct proc *np = allocproc();
-  if (np == 0)
-  {
-    return -1; // Error: Unable to allocate process
-  }
+  struct proc *np;
+  // Current process
+  struct proc *curproc = myproc();
 
-  // Copy process state from current process to new process
-  *np = *myproc();
+  if ((np = allocproc()) == 0)
+    return -1;
 
-  // Allocate a new kernel stack for the new process
-  if ((np->kstack = kalloc()) == 0)
-  {
-    np->state = UNUSED;
-    return -1; // Error: Unable to allocate stack
-  }
+  // Initialize the new process
+  np->tf = curproc->tf;
+  np->pgdir = curproc->pgdir;
 
-  // Set up the new process's user stack
-  if (stack == 0)
-  {
-    stack = (void*)myproc()->tf->esp; // Use the current process's stack
-  }
-  np->tf->esp = (uint)stack;
+  // Stack growing downwards
+  np->tf->esp = (uint)stack + PGSIZE;
+  *(void **)(np->tf->esp - 4) = arg2;
+  *(void **)(np->tf->esp - 8) = arg1;
+  np->tf->esp -= 8;
 
-  // Set up the new process's instruction pointer to start_func
+  // Function and arguments
   np->tf->eip = (uint)func;
 
-  // Set up the function arguments on the new stack
-  np->tf->esp -= 12;
-  *(void **)(np->tf->esp) = arg2;
-  np->tf->esp -= 4;
-  *(void **)(np->tf->esp) = arg1;
-  np->tf->esp -= 4;
-  *(void **)(np->tf->esp) = 0; // fake return PC
+  // Cloning process state
+  np->sz = curproc->sz;
+  np->parent = curproc;
+  *np->tf = *curproc->tf;
 
-  np->state = RUNNABLE; // Ready to run
+  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
-  return np->pid; // Return the new process's ID
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  release(&ptable.lock);
+
+  return np->tid;
 }
 
 int 
 join(int tid)
 {
   struct proc *p;
-  int havekids;
+  int havekids, mytid;
   struct proc *curproc = myproc();
 
   acquire(&ptable.lock);
 
   while (1)
   {
-    // Scan through table looking for exited children.
+    // Looking for exited children
     havekids = 0;
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       if (p->parent != curproc)
         continue;
+
       havekids = 1;
       if (p->state == ZOMBIE && p->tid == tid)
       {
-        // Found the child, clean up and return its pid.
-        int pid = p->pid;
+        mytid = p->tid;
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
@@ -248,19 +242,19 @@ join(int tid)
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
-        return pid;
+        return mytid;
       }
     }
 
-    // No point waiting if we don't have any children.
+    // Exiting if no children.
     if (!havekids || curproc->killed)
     {
       release(&ptable.lock);
       return -1;
     }
 
-    // Wait for children to exit.  (See wakeup1 call in proc.c)
-    sleep(curproc, &ptable.lock); // Release ptable.lock and sleep.
+    // Release ptable.lock and wait
+    sleep(curproc, &ptable.lock); 
   }
 }
 

@@ -5,43 +5,43 @@
 #include "x86.h"
 #include "param.h"
 #include "lock.h"
-/*
-int 
-thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
-{
-  void *stack = malloc(KSTACKSIZE);
-  if (stack == NULL)
-  {
-    return -1; // Error: Unable to allocate stack
-  }
 
-  // Set up arguments for clone
-  int tid = clone(stack + KSTACKSIZE, worker, arg1, arg2);
+// int 
+// thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
+// {
+//   void *stack = malloc(KSTACKSIZE);
+//   if (stack == 0)
+//     return -1;
 
-  if (tid < 0)
-  {
-    free(stack); // Clean up on failure
-  }
+//   int tid = clone(worker, arg1, arg2, stack);
 
-  return tid;
-}*/
+//   if (tid < 0)
+//   {
+//     free(stack);
+//   }
+
+//   return tid;
+// }
 
 int
-lock_init(struct lock* lk)
+user_lock_init(struct lock* lk)
 {
-  return lock_init(lk);
+  lk->locked = 0;
+  return 0;
 }
 
 void
-lock_acquire(struct lock* lk)
+user_lock_acquire(struct lock* lk)
 {
-  return lock_acquire(lk);
+  // Spin until the lock is acquired
+  while (xchg(&lk->locked, 1) != 0)
+    ;
 }
 
 void
-lock_release(struct lock* lk)
+user_lock_release(struct lock* lk)
 {
-  return lock_release(lk);
+  xchg(&lk->locked, 0);
 }
 
 char*

@@ -32,9 +32,9 @@ int uptime(void);
 
 // ulib.c
 int thread_create(void (*worker)(void *, void *), void *arg1, void *arg2);
-int lock_init(struct lock*);
-void lock_acquire(struct lock*);
-void lock_release(struct lock*);
+int user_lock_init(struct lock*);
+void user_lock_acquire(struct lock*);
+void user_lock_release(struct lock*);
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
 void *memmove(void*, const void*, int);
