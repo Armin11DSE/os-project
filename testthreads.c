@@ -1,60 +1,67 @@
 #include "types.h"
-#include "stat.h"
+#include "param.h"
+#include "memlayout.h"
+#include "mmu.h"
+#include "proc.h"
 #include "user.h"
+#include "stat.h"
 #include "fcntl.h"
+#include "x86.h"
+
 #define SLEEP_TIME 100
 
-lock_t* lk;
+volatile int counter = 0;
 
-void f1(void* arg1, void* arg2) {
+lock_t* lock;
+
+void thread1_func(void* arg1, void* arg2) 
+{
   int num = *(int*)arg1;
-  if (num) lock_acquire(lk);
-  printf(1, "1. this should print %s\n", num ? "first" : "whenever");
-  printf(1, "1. sleep for %d ticks\n", SLEEP_TIME);
+  if (num) lock_acquire(lock);
+  {
+    counter++;
+    printf(1, "1. First thread : %d \n", counter );
+  }  
   sleep(SLEEP_TIME);
-  if (num) lock_release(lk);
+  if (num) lock_release(lock);
   exit();
 }
 
-void f2(void* arg1, void* arg2) {
+void thread2_func(void* arg1, void* arg2) 
+{
   int num = *(int*)arg1;
-  if (num) lock_acquire(lk);
-  printf(1, "2. this should print %s\n", num ? "second" : "whenever");
-  printf(1, "2. sleep for %d ticks\n", SLEEP_TIME);
+  if (num) lock_acquire(lock);
+  {
+    counter++;
+    printf(1, "2. Second Thread: %d \n", counter );
+  }
   sleep(SLEEP_TIME);
-  if (num) lock_release(lk);
+  if (num) lock_release(lock);
   exit();
 }
 
-void f3(void* arg1, void* arg2) {
+void thread3_func(void* arg1, void* arg2) 
+{
   int num = *(int*)arg1;
-  if (num) lock_acquire(lk);
-  printf(1, "3. this should print %s\n", num ? "third" : "whenever");
-  printf(1, "3. sleep for %d ticks\n", SLEEP_TIME);
+  if (num) lock_acquire(lock);
+  {
+    counter++;
+    printf(1, "3. Third Thread: %d \n", counter );
+  }
   sleep(SLEEP_TIME);
-  if (num) lock_release(lk);
+  if (num) lock_release(lock);
   exit();
 }
 
 int
 main(int argc, char *argv[])
 {
-  lock_init(lk);
+  lock_init(lock);
   int arg1 = 1, arg2 = 1;
 
-  printf(1, "below should be sequential print statements:\n");
-  thread_create(&f1, (void *)&arg1, (void *)&arg2);
-  thread_create(&f2, (void *)&arg1, (void *)&arg2);
-  thread_create(&f3, (void *)&arg1, (void *)&arg2);
-  thread_join();
-  thread_join();
-  thread_join();
-
-  arg1 = 0;
-  printf(1, "below should be a jarbled mess:\n");
-  thread_create(&f1, (void *)&arg1, (void *)&arg2);
-  thread_create(&f2, (void *)&arg1, (void *)&arg2);
-  thread_create(&f3, (void *)&arg1, (void *)&arg2);
+  thread_create(&thread1_func, (void *)&arg1, (void *)&arg2);
+  thread_create(&thread2_func, (void *)&arg1, (void *)&arg2);
+  thread_create(&thread3_func, (void *)&arg1, (void *)&arg2);
   thread_join();
   thread_join();
   thread_join();
