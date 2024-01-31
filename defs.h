@@ -9,7 +9,6 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-struct lock;
 
 // bio.c
 void            binit(void);
@@ -121,8 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-int             clone(void*, void (*func)(void*, void*), void*, void*);
-int             join(int);
+int             clone(void(*fcn)(void*, void*), void*, void*, void*);
+int             join(void**);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -141,11 +140,6 @@ void            acquiresleep(struct sleeplock*);
 void            releasesleep(struct sleeplock*);
 int             holdingsleep(struct sleeplock*);
 void            initsleeplock(struct sleeplock*, char*);
-
-// lock.c
-int             lock_init(struct lock*);
-void            lock_acquire(struct lock*);
-void            lock_release(struct lock*);
 
 // string.c
 int             memcmp(const void*, const void*, uint);

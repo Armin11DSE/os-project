@@ -10,58 +10,20 @@
 int
 sys_clone(void)
 {
-  void (*func)(void *, void *);
-  void *arg1, *arg2, *stack;
-
-  if (argptr(0, (char**)&stack, sizeof(void*)) < 0 || argptr(1, (char**)&func, sizeof(void*)) < 0 ||
-      argptr(2, (char**)&arg1, sizeof(void*)) < 0 || argptr(3, (char**)&arg2, sizeof(void*)) < 0) 
-  {
+  int fcn, arg1, arg2, stack;
+  if(argint(0, &fcn)<0 || argint(1, &arg1)<0 || argint(2, &arg2)<0 || argint(3, &stack)<0)
     return -1;
-  }
-
-  return clone(stack, func, arg1, arg2);
+  return clone((void *)fcn, (void *)arg1, (void *)arg2, (void *)stack);
 }
 
 int
 sys_join(void)
 {
-  int tid;
-
-  if (argint(0, &tid) < 0) 
-  {
-    return -1;
-  }
-
-  return join(tid);
-}
-
-int 
-sys_lock_init(void)
-{
-  struct lock *lk;
-  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
-    return -1;
-  return lock_init(lk);
-}
-
-int 
-sys_lock_acquire(void)
-{
-  struct lock *lk;
-  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
-    return -1;
-  lock_acquire(lk);
-  return 0;
-}
-
-int 
-sys_lock_release(void)
-{
-  struct lock *lk;
-  if (argptr(0, (void *)&lk, sizeof(*lk)) < 0)
-    return -1;
-  lock_release(lk);
-  return 0;
+  void **stack;
+  int stackArg;
+  stackArg = argint(0, &stackArg);
+  stack = (void**) stackArg;
+  return join(stack);
 }
 
 int

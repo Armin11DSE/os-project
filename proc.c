@@ -174,87 +174,117 @@ growproc(int n)
   return 0;
 }
 
+
 int 
-clone(void *stack, void (*func)(void *, void *), void *arg1, void *arg2)
+clone(void(*fcn)(void*,void*), void *arg1, void *arg2, void* stack)
 {
   struct proc *np;
-  // Current process
-  struct proc *curproc = myproc();
+  struct proc *p = myproc();
 
-  if ((np = allocproc()) == 0)
+  // Allocate process.
+  if((np = allocproc()) == 0)
     return -1;
 
-  // Initialize the new process
-  np->tf = curproc->tf;
-  np->pgdir = curproc->pgdir;
+  // Copy process data to the new thread
+  np->pgdir = p->pgdir;
+  np->sz = p->sz;
+  np->parent = p;
+  *np->tf = *p->tf;
+  
+  void * sarg1, *sarg2, *sret;
 
-  // Stack growing downwards
-  np->tf->esp = (uint)stack + PGSIZE;
-  *(void **)(np->tf->esp - 4) = arg2;
-  *(void **)(np->tf->esp - 8) = arg1;
-  np->tf->esp -= 8;
+  // Push fake return address to the stack of thread
+  sret = stack + PGSIZE - 3 * sizeof(void *);
+  *(uint*)sret = 0xFFFFFFF;
 
-  // Function and arguments
-  np->tf->eip = (uint)func;
+  // Push first argument to the stack of thread
+  sarg1 = stack + PGSIZE - 2 * sizeof(void *);
+  *(uint*)sarg1 = (uint)arg1;
 
-  // Cloning process state
-  np->sz = curproc->sz;
-  np->parent = curproc;
-  *np->tf = *curproc->tf;
+  // Push second argument to the stack of thread
+  sarg2 = stack + PGSIZE - 1 * sizeof(void *);
+  *(uint*)sarg2 = (uint)arg2;
 
-  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+  // Put address of new stack in the stack pointer (ESP)
+  np->tf->esp = (uint) stack;
 
+  // Save address of stack
+  np->threadstack = stack;
+
+  // Initialize stack pointer to appropriate address
+  np->tf->esp += PGSIZE - 3 * sizeof(void*);
+  np->tf->ebp = np->tf->esp;
+
+  // Set instruction pointer to given function
+  np->tf->eip = (uint) fcn;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  int i;
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+  np->cwd = idup(p->cwd);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+ 
   acquire(&ptable.lock);
+
   np->state = RUNNABLE;
+
   release(&ptable.lock);
 
-  return np->tid;
+  return np->pid;
 }
 
-int 
-join(int tid)
+int
+join(void** stack)
 {
   struct proc *p;
-  int havekids, mytid;
-  struct proc *curproc = myproc();
-
+  int havekids, pid;
+  struct proc *cp = myproc();
   acquire(&ptable.lock);
-
-  while (1)
-  {
-    // Looking for exited children
+  for(;;){
+    // Scan through table looking for zombie children.
     havekids = 0;
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if (p->parent != curproc)
-        continue;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 
+      // Check if this is a child thread (parent or shared address space)
+      if(p->parent != cp || p->pgdir != p->parent->pgdir)
+        continue;
+        
       havekids = 1;
-      if (p->state == ZOMBIE && p->tid == tid)
-      {
-        mytid = p->tid;
+      if(p->state == ZOMBIE){
+        // Found one.
+        pid = p->pid;
+
+        // Remove thread from the kernel stack
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+
+        // Reset thread in process table
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        stack = p->threadstack;
+        p->threadstack = 0;
+
         release(&ptable.lock);
-        return mytid;
+        return pid;
       }
     }
 
-    // Exiting if no children.
-    if (!havekids || curproc->killed)
-    {
+    // No point waiting if we don't have any children.
+    if(!havekids || cp->killed){
       release(&ptable.lock);
       return -1;
     }
 
-    // Release ptable.lock and wait
-    sleep(curproc, &ptable.lock); 
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(cp, &ptable.lock);  //DOC: wait-sleep
   }
 }
 

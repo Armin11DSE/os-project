@@ -9,7 +9,6 @@ OBJS = \
 	kalloc.o\
 	kbd.o\
 	lapic.o\
-	lock.o\
 	log.o\
 	main.o\
 	mp.o\
@@ -30,7 +29,7 @@ OBJS = \
 	vm.o\
 
 # Cross-compiling (e.g., on Mac OS X)
-# TOOLPREFIX = i386-jos-elf
+# TOOLPREFIX = i386-elf-
 
 # Using native tools (e.g., on X86 Linux)
 #TOOLPREFIX = 
@@ -151,20 +150,6 @@ _%: %.o $(ULIB)
 	$(OBJDUMP) -S $@ > $*.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
-_forktest: forktest.o $(ULIB)
-	# forktest has less library code linked in - needs to be small
-	# in order to be able to max out the proc table.
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
-	$(OBJDUMP) -S _forktest > forktest.asm
-
-_clonetest: clonetest.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _clonetest clonetest.o ulib.o usys.o
-	$(OBJDUMP) -S _clonetest > clonetest.asm
-
-_jointest: jointest.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _jointest jointest.o ulib.o usys.o
-	$(OBJDUMP) -S _jointest > jointest.asm
-
 mkfs: mkfs.c fs.h
 	gcc -Werror -Wall -o mkfs mkfs.c
 
@@ -177,9 +162,6 @@ mkfs: mkfs.c fs.h
 UPROGS=\
 	_cat\
 	_echo\
-	_forktest\
-	_clonetest\
-	_jointest\
 	_grep\
 	_init\
 	_kill\
@@ -192,6 +174,7 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
+	_testthreads\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -259,9 +242,9 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 # check in that version.
 
 EXTRA=\
-	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+	mkfs.c ulib.c user.h cat.c echo.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
-	printf.c umalloc.c clonetest.c jointest.c\
+	printf.c umalloc.c testthreads.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
