@@ -2,26 +2,34 @@
 #include "stat.h"
 #include "fcntl.h"
 #include "user.h"
+#include "mmu.h"
 #include "x86.h"
 #include "param.h"
 #include "lock.h"
 
-// int 
-// thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
-// {
-//   void *stack = malloc(KSTACKSIZE);
-//   if (stack == 0)
-//     return -1;
+int 
+thread_create(void (*worker)(void *, void *), void *arg1, void *arg2)
+{
+  void *stack = malloc(KSTACKSIZE);
+  if (stack == 0)
+    return -1;
 
-//   int tid = clone(worker, arg1, arg2, stack);
+  int tid = clone(stack, worker, arg1, arg2);
 
-//   if (tid < 0)
-//   {
-//     free(stack);
-//   }
+  if (tid < 0)
+  {
+    free(stack);
+  }
 
-//   return tid;
-// }
+  return tid;
+}
+
+int thread_join()
+{
+  // void * stackPtr;
+  int x = join(0);
+  return x;
+}
 
 int
 user_lock_init(struct lock* lk)

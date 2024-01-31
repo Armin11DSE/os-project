@@ -1,6 +1,11 @@
+// #ifndef __USER__
+
 struct stat;
 struct rtcdate;
 struct lock;
+// typedef struct lock{
+//   uint flag;
+// }lock;
 
 // system calls
 int clone(void*, void (*func)(void*, void*), void*, void*);
@@ -47,3 +52,5 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+// #endif
