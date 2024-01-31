@@ -190,6 +190,7 @@ clone(void(*fcn)(void*,void*), void *arg1, void *arg2, void* stack)
   np->sz = p->sz;
   np->parent = p;
   *np->tf = *p->tf;
+  np->cpu_burst = 0;
   
   void * sarg1, *sarg2, *sret;
 
@@ -239,7 +240,7 @@ clone(void(*fcn)(void*,void*), void *arg1, void *arg2, void* stack)
 }
 
 int
-join(void** stack)
+join(void* stack)
 {
   struct proc *p;
   int havekids, pid;
@@ -256,7 +257,6 @@ join(void** stack)
         
       havekids = 1;
       if(p->state == ZOMBIE){
-        // Found one.
         pid = p->pid;
 
         // Remove thread from the kernel stack
@@ -277,14 +277,14 @@ join(void** stack)
       }
     }
 
-    // No point waiting if we don't have any children.
+    // Exit if no children
     if(!havekids || cp->killed){
       release(&ptable.lock);
       return -1;
     }
 
-    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
-    sleep(cp, &ptable.lock);  //DOC: wait-sleep
+    // Wait for children to exit.
+    sleep(cp, &ptable.lock);
   }
 }
 
@@ -313,6 +313,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->cpu_burst = 0;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -439,33 +440,52 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
-  for(;;){
+
+  for (;;)
+  {
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+
+    // Initialize variables for CFS
+    struct proc *chosen = 0;
+    uint minRuntime = -1;
+
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->state != RUNNABLE)
         continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      // Process runtime & priority
+      uint runtime = ticks - p->cpu_burst;
+      uint priority = 1000 / (runtime + 1);
 
-      swtch(&(c->scheduler), p->context);
+      // Choose the process with the highest priority
+      if (priority < minRuntime)
+      {
+        minRuntime = priority;
+        chosen = p;
+        break;
+      }
+    }
+
+    if (chosen != 0)
+    {
+      c->proc = chosen;
+      switchuvm(chosen);
+      chosen->state = RUNNING;
+
+      swtch(&(c->scheduler), chosen->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
 

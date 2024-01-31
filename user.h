@@ -9,7 +9,7 @@ typedef struct __lock_t
 
 // system calls
 int clone(void (*worker)(void *, void *), void *, void *, void *);
-int join(void **);
+int join(void *);
 int fork(void);
 int exit(void) __attribute__((noreturn));
 int wait(void);
